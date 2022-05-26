@@ -16,7 +16,7 @@ The layout of the scripts is
 
 ## Manual
 
-Please see the [wiki](https://github.com/qlu-lab/X-Wing_tmp/wiki) for the detailed manual of `X-Wing`.
+Please see the [wiki](https://github.com/qlu-lab/X-Wing/wiki) for the detailed manual of `X-Wing`.
 
 
 ## Version History
