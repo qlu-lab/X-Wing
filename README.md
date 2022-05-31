@@ -34,7 +34,9 @@ The X-Wing posterior SNP effect size estimates in our manusciript are available 
 
 ## Citation
 
-If you use X-Wing, please cite
+If you use X-Wing, please cite 
+
+Miao, J., Guo, H., Song, G., Zhao, Z., Hou, L., & Lu, Q. (2022). [Quantifying portable genetic effects and improving cross-ancestry genetic prediction with GWAS summary statistics.](https://doi.org/10.1101/2022.05.26.493528) bioRxiv, 2022.2005.2026.493528.
 
 
 ## Contact
