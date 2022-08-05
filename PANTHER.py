@@ -200,6 +200,13 @@ def main():
                     param_dict['n_iter'], param_dict['n_burnin'], param_dict['thin'], param_dict['pop'], param_dict['pop'][i], int(chrom),
                     param_dict['out_dir'], param_dict['out_name'], param_dict['seed'])
                 else:  # Return posterior effects for non-Target population
+                    anno_matrix_tmp = anno_matrix.copy()
+                    for j in range(len(param_dict['pop'])):
+                        if j != i:
+                            anno_matrix_tmp[j][0] = np.zeros(len(anno_matrix[j][0]), dtype=int)
+                    gibbs_sampler.gibbs_fb_other(param_dict['phi'], snp_dict, beta_dict, frq_dict, anno_matrix_tmp, idx_dict, param_dict['n_gwas'], ld_blk, blk_size,
+                    param_dict['n_iter'], param_dict['n_burnin'], param_dict['thin'], param_dict['pop'], param_dict['pop'][i], int(chrom),
+                    param_dict['out_dir'], param_dict['out_name'], param_dict['seed'])
                     gibbs_sampler.gibbs_fb_other(param_dict['phi'], snp_dict, beta_dict, frq_dict, anno_matrix, idx_dict, param_dict['n_gwas'], ld_blk, blk_size,
                     param_dict['n_iter'], param_dict['n_burnin'], param_dict['thin'], param_dict['pop'], param_dict['pop'][i], int(chrom),
                     param_dict['out_dir'], param_dict['out_name'], param_dict['seed'])
@@ -209,8 +216,12 @@ def main():
                     gibbs_sampler.gibbs_tune_target(param_dict['phi'], snp_dict, beta_dict, frq_dict, anno_matrix, idx_dict, param_dict['n_gwas'], ld_blk, blk_size,
                     param_dict['n_iter'], param_dict['n_burnin'], param_dict['thin'], param_dict['pop'], param_dict['pop'][i], int(chrom),
                     param_dict['out_dir'], param_dict['out_name'], param_dict['seed'])
-                else: # Return posterior effects for non-Target population
-                    gibbs_sampler.gibbs_tune_other(param_dict['phi'], snp_dict, beta_dict, frq_dict, anno_matrix, idx_dict, param_dict['n_gwas'], ld_blk, blk_size,
+                else:  # Return posterior effects for non-Target population
+                    anno_matrix_tmp = anno_matrix.copy()
+                    for j in range(len(param_dict['pop'])):
+                        if j != i:
+                            anno_matrix_tmp[j][0] = np.zeros(len(anno_matrix[j][0]), dtype=int)
+                    gibbs_sampler.gibbs_tune_other(param_dict['phi'], snp_dict, beta_dict, frq_dict, anno_matrix_tmp, idx_dict, param_dict['n_gwas'], ld_blk, blk_size,
                     param_dict['n_iter'], param_dict['n_burnin'], param_dict['thin'], param_dict['pop'], param_dict['pop'][i], int(chrom),
                     param_dict['out_dir'], param_dict['out_name'], param_dict['seed'])
 
