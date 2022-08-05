@@ -207,9 +207,6 @@ def main():
                     gibbs_sampler.gibbs_fb_other(param_dict['phi'], snp_dict, beta_dict, frq_dict, anno_matrix_tmp, idx_dict, param_dict['n_gwas'], ld_blk, blk_size,
                     param_dict['n_iter'], param_dict['n_burnin'], param_dict['thin'], param_dict['pop'], param_dict['pop'][i], int(chrom),
                     param_dict['out_dir'], param_dict['out_name'], param_dict['seed'])
-                    gibbs_sampler.gibbs_fb_other(param_dict['phi'], snp_dict, beta_dict, frq_dict, anno_matrix, idx_dict, param_dict['n_gwas'], ld_blk, blk_size,
-                    param_dict['n_iter'], param_dict['n_burnin'], param_dict['thin'], param_dict['pop'], param_dict['pop'][i], int(chrom),
-                    param_dict['out_dir'], param_dict['out_name'], param_dict['seed'])
         else: # Tuning parameter
             for i in range(len(param_dict['pop'])): 
                 if (param_dict['pop'][i] == param_dict['target_pop']): # Return posterior effects for Target population
