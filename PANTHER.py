@@ -58,6 +58,7 @@ import getopt
 import munge_data
 import gibbs_sampler
 import numpy as np
+import copy
 
 TopHEAD = "*********************************************************************\n"
 TopHEAD += "* Cross-population Weighting (X-Wing) \n"
@@ -200,7 +201,7 @@ def main():
                     param_dict['n_iter'], param_dict['n_burnin'], param_dict['thin'], param_dict['pop'], param_dict['pop'][i], int(chrom),
                     param_dict['out_dir'], param_dict['out_name'], param_dict['seed'])
                 else:  # Return posterior effects for non-Target population
-                    anno_matrix_tmp = anno_matrix.copy()
+                    anno_matrix_tmp = copy.deepcopy(anno_matrix)
                     for j in range(len(param_dict['pop'])):
                         if j != i:
                             anno_matrix_tmp[j][0] = np.zeros(len(anno_matrix[j][0]), dtype=int)
@@ -214,7 +215,7 @@ def main():
                     param_dict['n_iter'], param_dict['n_burnin'], param_dict['thin'], param_dict['pop'], param_dict['pop'][i], int(chrom),
                     param_dict['out_dir'], param_dict['out_name'], param_dict['seed'])
                 else:  # Return posterior effects for non-Target population
-                    anno_matrix_tmp = anno_matrix.copy()
+                    anno_matrix_tmp = copy.deepcopy(anno_matrix)
                     for j in range(len(param_dict['pop'])):
                         if j != i:
                             anno_matrix_tmp[j][0] = np.zeros(len(anno_matrix[j][0]), dtype=int)
