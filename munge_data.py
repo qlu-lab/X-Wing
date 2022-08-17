@@ -69,7 +69,7 @@ def munge_anno(anno_file, chrom, pop):
         header = next(ff)
         for line in ff:
             ll = (line.strip()).split()
-            if int(ll[0]) == chrom:
+            if int(ll[0]) == chrom and ll[2] in ATGC and ll[3] in ATGC:
                 anno_dict['SNP'].append(ll[1])
                 anno_dict['A1'].append(ll[2])
                 anno_dict['A2'].append(ll[3])
