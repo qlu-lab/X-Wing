@@ -26,7 +26,7 @@ Please see the [wiki](https://github.com/qlu-lab/X-Wing/wiki) for the detailed m
 
 ## Acknowledgement
 
-Part of the code is adapted from PRS-CSx (https://github.com/getian107/PRScsx) and XPASS (https://github.com/YangLabHKUST/XPASS). We thank Dr. Tian Ge and Dr. Mingxuan Cai for sharing their code.
+Part of the code is adapted from [PRS-CSx](https://github.com/getian107/PRScsx) and [XPASS](https://github.com/YangLabHKUST/XPASS). We thank Dr. Tian Ge and Dr. Mingxuan Cai for sharing their code.
 
 ## Data
 
