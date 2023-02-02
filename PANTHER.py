@@ -14,6 +14,7 @@ python PANTHER.py \
 --n_gwas GWAS_SAMPLE_SIZE \
 --anno_file PATH_TO_ANNOTATION_MATRIX \
 --pop POPULATION \
+--target TARGET_POPULATION \
 --out_name NAME_TO_OUTFILE \
 --out_dir PATH_TO_OUTFILE \
 --phi PHI \
@@ -21,6 +22,7 @@ python PANTHER.py \
 --n_burnin MCMC_BURIN \
 --thin MCMC_THIN \
 --chrom CHR \
+--pst_pop OUT_PST_POPULATION \
 --seed SEED
 
 where the inputs in order are
@@ -73,10 +75,10 @@ TopHEAD += "********************************************************************
 
 def munge_param():
     long_opts_list = ['ref_dir=', 'bim_prefix=', 'anno_file=', 'sumstats=', 'phi=', 'n_gwas=', 'pop=', 'target_pop=',
-                      'n_iter=', 'n_burnin=', 'thin=', 'out_dir=', 'out_name=', 'chrom=', 'seed=', 'help']
+                      'n_iter=', 'n_burnin=', 'thin=', 'out_dir=', 'out_name=', 'chrom=', 'pst_pop=','seed=', 'help']
 
     param_dict = {'ref_dir': None, 'bim_prefix': None, 'anno_file': None, 'sumstats': None,  'phi': None, 'n_gwas': None, 'pop': None, 'target_pop': None,
-                  'n_iter': None, 'n_burnin': None, 'thin': 5, 'out_dir': None, 'out_name': None, 'chrom': range(1,23), 'seed': None}
+                  'n_iter': None, 'n_burnin': None, 'thin': 5, 'out_dir': None, 'out_name': None, 'chrom': range(1,23), 'pst_pop': None, 'seed': None}
 
     print('\n')
 
@@ -106,6 +108,7 @@ def munge_param():
             elif opt == "--out_dir": param_dict['out_dir'] = arg
             elif opt == "--out_name": param_dict['out_name'] = arg
             elif opt == "--chrom": param_dict['chrom'] = arg.split(',')
+            elif opt == "--pst_pop": param_dict['pst_pop'] = arg
             elif opt == "--seed": param_dict['seed'] = int(arg)
     else:
         print(__doc__)
@@ -196,32 +199,34 @@ def main():
         
         if param_dict['phi'] is None: # Full Bayesian
             for i in range(len(param_dict['pop'])):
-                if (param_dict['pop'][i] == param_dict['target_pop']): # Return posterior effects for Target population
+                if (param_dict['pop'][i] == param_dict['target_pop'] and param_dict['pop'][i] == param_dict['pst_pop']): # Return posterior effects for Target population
                     gibbs_sampler.gibbs_fb_target(param_dict['phi'], snp_dict, beta_dict, frq_dict, anno_matrix, idx_dict, param_dict['n_gwas'], ld_blk, blk_size,
                     param_dict['n_iter'], param_dict['n_burnin'], param_dict['thin'], param_dict['pop'], param_dict['pop'][i], int(chrom),
                     param_dict['out_dir'], param_dict['out_name'], param_dict['seed'])
                 else:  # Return posterior effects for non-Target population
-                    anno_matrix_tmp = copy.deepcopy(anno_matrix)
-                    for j in range(len(param_dict['pop'])):
-                        if j != i:
-                            anno_matrix_tmp[j][0] = np.zeros(len(anno_matrix[j][0]), dtype=int)
-                    gibbs_sampler.gibbs_fb_other(param_dict['phi'], snp_dict, beta_dict, frq_dict, anno_matrix_tmp, idx_dict, param_dict['n_gwas'], ld_blk, blk_size,
-                    param_dict['n_iter'], param_dict['n_burnin'], param_dict['thin'], param_dict['pop'], param_dict['pop'][i], int(chrom),
-                    param_dict['out_dir'], param_dict['out_name'], param_dict['seed'])
+                    if (param_dict['pop'][i] == param_dict['pst_pop']):
+                        anno_matrix_tmp = copy.deepcopy(anno_matrix)
+                        for j in range(len(param_dict['pop'])):
+                            if j != i:
+                                anno_matrix_tmp[j][0] = np.zeros(len(anno_matrix[j][0]), dtype=int)
+                        gibbs_sampler.gibbs_fb_other(param_dict['phi'], snp_dict, beta_dict, frq_dict, anno_matrix_tmp, idx_dict, param_dict['n_gwas'], ld_blk, blk_size,
+                        param_dict['n_iter'], param_dict['n_burnin'], param_dict['thin'], param_dict['pop'], param_dict['pop'][i], int(chrom),
+                        param_dict['out_dir'], param_dict['out_name'], param_dict['seed'])
         else: # Tuning parameter
             for i in range(len(param_dict['pop'])): 
-                if (param_dict['pop'][i] == param_dict['target_pop']): # Return posterior effects for Target population
+                if (param_dict['pop'][i] == param_dict['target_pop'] and param_dict['pop'][i] == param_dict['pst_pop']): # Return posterior effects for Target population
                     gibbs_sampler.gibbs_tune_target(param_dict['phi'], snp_dict, beta_dict, frq_dict, anno_matrix, idx_dict, param_dict['n_gwas'], ld_blk, blk_size,
                     param_dict['n_iter'], param_dict['n_burnin'], param_dict['thin'], param_dict['pop'], param_dict['pop'][i], int(chrom),
                     param_dict['out_dir'], param_dict['out_name'], param_dict['seed'])
                 else:  # Return posterior effects for non-Target population
-                    anno_matrix_tmp = copy.deepcopy(anno_matrix)
-                    for j in range(len(param_dict['pop'])):
-                        if j != i:
-                            anno_matrix_tmp[j][0] = np.zeros(len(anno_matrix[j][0]), dtype=int)
-                    gibbs_sampler.gibbs_tune_other(param_dict['phi'], snp_dict, beta_dict, frq_dict, anno_matrix_tmp, idx_dict, param_dict['n_gwas'], ld_blk, blk_size,
-                    param_dict['n_iter'], param_dict['n_burnin'], param_dict['thin'], param_dict['pop'], param_dict['pop'][i], int(chrom),
-                    param_dict['out_dir'], param_dict['out_name'], param_dict['seed'])
+                    if (param_dict['pop'][i] == param_dict['pst_pop']):
+                        anno_matrix_tmp = copy.deepcopy(anno_matrix)
+                        for j in range(len(param_dict['pop'])):
+                            if j != i:
+                                anno_matrix_tmp[j][0] = np.zeros(len(anno_matrix[j][0]), dtype=int)
+                        gibbs_sampler.gibbs_tune_other(param_dict['phi'], snp_dict, beta_dict, frq_dict, anno_matrix_tmp, idx_dict, param_dict['n_gwas'], ld_blk, blk_size,
+                        param_dict['n_iter'], param_dict['n_burnin'], param_dict['thin'], param_dict['pop'], param_dict['pop'][i], int(chrom),
+                        param_dict['out_dir'], param_dict['out_name'], param_dict['seed'])
 
 
         print('\n')

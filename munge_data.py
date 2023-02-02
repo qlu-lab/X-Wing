@@ -64,6 +64,7 @@ def munge_bim(bim_file, chrom):
 def munge_anno(anno_file, chrom, pop):
     print('--- munge ' + pop.upper() + ' annotation file: %s ' % anno_file)
 
+    ATGC = ['A', 'T', 'G', 'C']
     anno_dict = {'SNP':[], 'A1':[], 'A2':[]}
     with open(anno_file) as ff:
         header = next(ff)
