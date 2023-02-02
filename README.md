@@ -30,7 +30,7 @@ Part of the code is adapted from [PRS-CSx](https://github.com/getian107/PRScsx) 
 
 ## Data
 
-The X-Wing posterior SNP effect size estimates in our manusciript are available at [here]().
+The X-Wing posterior SNP effect size estimates in our manusciript are available at [here](https://uwmadison.box.com/s/zzf6s3z9v9vmq1avd9dbbb4nq7r9nenj).
 
 ## Citation
 
