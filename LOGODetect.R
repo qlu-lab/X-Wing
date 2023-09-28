@@ -15,12 +15,16 @@ option_list = list(
   make_option('--n_gwas', action = 'store', default = NA, type = 'character'),
   make_option('--ref_dir', action = 'store', default = NA, type = 'character'),
   make_option('--pop', action = 'store', default = NA, type = 'character'),
+  make_option('--ldsc_dir', action = 'store', default = NA, type = 'character'),
   make_option('--block_partition', action = 'store', default = NA, type = 'character'),
   make_option('--gc_snp', action = 'store', default = NA, type = 'character'),
   make_option('--out_dir', action = 'store', default = NA, type = 'character'),
+  make_option('--chr', action = 'store', default = NA, type = 'integer'),
   make_option('--n_cores', action = 'store', default = 20, type = 'numeric'),
   make_option('--target_pop', action = 'store', default = NA, type = 'character'),
-  make_option('--n_topregion', action = 'store', default = NA, type = 'numeric')
+  make_option('--n_topregion', action = 'store', default = NA, type = 'numeric'),
+  make_option('--max_nsnps', action = 'store', default = 2000, type = 'integer'),
+  make_option('--interval', action = 'store', default = 20, type = 'integer')
 )
 opt = parse_args(OptionParser(option_list=option_list))
 
@@ -52,34 +56,54 @@ if (!is.na(opt$n_topregion)) {
 }
 cat(paste0("--n_cores ", opt$n_cores, " \n \n"))
 
+
 sumstats = strsplit(opt$sumstats, ',')[[1]]
 dat1 = data.frame(fread(sumstats[1]))
 dat2 = data.frame(fread(sumstats[2]))
+if(!is.na(opt$chr)){
+  chr = opt$chr
+  dat1 = dat1[dat1$CHR == chr, ]
+  dat2 = dat2[dat2$CHR == chr, ]
+}
 n_gwas = as.numeric(strsplit(opt$n_gwas, ',')[[1]])
 n1 = n_gwas[1]
 n2 = n_gwas[2]
 ref_dir = opt$ref_dir
 pop = strsplit(opt$pop, ',')[[1]]
 if(length(pop) == 1){
+  npop = 1
   pop1 = pop2 = pop
 }else{
+  npop = 2
   pop1 = pop[1]
   pop2 = pop[2]
 }
-ref1 = paste0(ref_dir, '/', pop1, '/1000G_', pop1, '_QC')
-ref2 = paste0(ref_dir, '/', pop2, '/1000G_', pop2, '_QC')
-cov1 = paste0(ref_dir, '/', pop1, '/1000G_', pop1, '_QC_cov.txt')
-cov2 = paste0(ref_dir, '/', pop2, '/1000G_', pop2, '_QC_cov.txt')
-ref_bim = data.frame(fread(paste0(ref1, '.bim')))
-ref1_bed = BEDMatrix(paste0(ref1, '.bed'))
-ref2_bed = BEDMatrix(paste0(ref2, '.bed'))
-colnames(ref1_bed) = colnames(ref2_bed) = ref_bim$V2
-n_ref1 = nrow(ref1_bed)
-n_ref2 = nrow(ref2_bed)
-ldscore1 = data.frame(fread(paste0(ref_dir, '/', pop1, '/', pop1, '.l2.ldscore')))
-ldscore2 = data.frame(fread(paste0(ref_dir, '/', pop2, '/', pop2, '.l2.ldscore')))
+if(npop == 1){
+  ref = paste0(ref_dir, '/', pop, '/1000G_', pop, '_QC')
+  ref_bim = data.frame(fread(paste0(ref, '.bim')))
+  ref_bed = BEDMatrix(paste0(ref, '.bed'))
+  colnames(ref_bed) = ref_bim$V2
+  n_ref = nrow(ref_bed)
+  ldscore = data.frame(fread(paste0(ref_dir, '/', pop, '/', pop, '.l2.ldscore')))
+}
+if(npop == 2){
+  ref1 = paste0(ref_dir, '/', pop1, '/1000G_', pop1, '_QC')
+  ref2 = paste0(ref_dir, '/', pop2, '/1000G_', pop2, '_QC')
+  cov1 = paste0(ref_dir, '/', pop1, '/1000G_', pop1, '_QC_cov.txt')
+  cov2 = paste0(ref_dir, '/', pop2, '/1000G_', pop2, '_QC_cov.txt')
+  ref_bim = data.frame(fread(paste0(ref1, '.bim')))
+  ref1_bed = BEDMatrix(paste0(ref1, '.bed'))
+  ref2_bed = BEDMatrix(paste0(ref2, '.bed'))
+  colnames(ref1_bed) = colnames(ref2_bed) = ref_bim$V2
+  n_ref1 = nrow(ref1_bed)
+  n_ref2 = nrow(ref2_bed)
+  ldscore1 = data.frame(fread(paste0(ref_dir, '/', pop1, '/', pop1, '.l2.ldscore')))
+  ldscore2 = data.frame(fread(paste0(ref_dir, '/', pop2, '/', pop2, '.l2.ldscore')))
+}
 block = read.table(opt$block_partition, header = T)
-gc_snp = data.frame(fread(opt$gc_snp))[, 1]
+if(!is.na(opt$gc_snp)){
+  gc_snp = data.frame(fread(opt$gc_snp))[, 1]
+}
 out_dir = opt$out_dir
 ncore = opt$n_cores
 target_pop = opt$target_pop
@@ -87,7 +111,6 @@ n_topregion = opt$n_topregion
 if(!dir.exists(out_dir)){
   dir.create(out_dir)
 }
-
 
 
 ############################### QC
@@ -306,40 +329,102 @@ simulate_zscore_helper = function(segment.partition, geno.block, n_ref, thre){
   len = table(segment.partition$segment)
   segment.count = max(segment.partition$segment)
   
-  ld_diag = ld_offdiag = ld2_diag = ld2_offdiag = list()
-  C1 = C2 = Sigma_p1 = Sigma_p2 = Sigma_V1 = Sigma_V2 = Sigma_D1 = Sigma_D2 = list()
-  snp_1 = segment.partition$SNP[segment.partition$segment == 1]
-  snp_2 = segment.partition$SNP[segment.partition$segment == 2]
-  ld_diag[[1]] = cor(geno.block[, colnames(geno.block) %in% snp_1], use = 'pairwise.complete.obs')
-  ld_diag[[2]] = cor(geno.block[, colnames(geno.block) %in% snp_2], use = 'pairwise.complete.obs')
-  ld_offdiag[[1]] = cor(geno.block[, colnames(geno.block) %in% snp_1], geno.block[, colnames(geno.block) %in% snp_2], use = 'pairwise.complete.obs')
-  ld_diag[[1]][is.na(ld_diag[[1]])] = ld_diag[[2]][is.na(ld_diag[[2]])] = ld_offdiag[[1]][is.na(ld_offdiag[[1]])] = 0
-  ld2_diag[[1]] = (n_ref-1)/(n_ref-2)*( ld_diag[[1]]%*%ld_diag[[1]] + ld_offdiag[[1]]%*%t(ld_offdiag[[1]]) ) - sum(len[1:2])/(n_ref-2)*ld_diag[[1]]
-  ld2_offdiag[[1]] = (n_ref-1)/(n_ref-2)*( ld_diag[[1]]%*%ld_offdiag[[1]] + ld_offdiag[[1]]%*%ld_diag[[2]] ) - sum(len[1:2])/(n_ref-2)*ld_offdiag[[1]]
+  if(segment.count == 1){
+    ld_diag = ld2_diag = list()
+    Sigma_p1 = Sigma_p2 = Sigma_V1 = Sigma_V2 = Sigma_D1 = Sigma_D2 = list()
+    snp_1 = segment.partition$SNP[segment.partition$segment == 1]
+    ld_diag[[1]] = cor(geno.block[, colnames(geno.block) %in% snp_1], use = 'pairwise.complete.obs')
+    ld_diag[[1]][is.na(ld_diag[[1]])] = 0
+    ld2_diag[[1]] = (n_ref-1)/(n_ref-2)*ld_diag[[1]]%*%ld_diag[[1]] - sum(len[1])/(n_ref-2)*ld_diag[[1]]
+    
+    SVD = svd.try(ld_diag[[1]], nu = 0, nv = nrow(ld_diag[[1]]))
+    sv = SVD$d
+    Sigma_p1[[1]] = sum(sv>sv[1]/thre)
+    Sigma_D1[[1]] = sqrt(sv[1:Sigma_p1[[1]]])
+    Sigma_V1[[1]] = SVD$v[,1:Sigma_p1[[1]]]
+    SVD = svd.try(ld2_diag[[1]], nu = 0, nv = nrow(ld2_diag[[1]]))
+    sv = SVD$d
+    Sigma_p2[[1]] = sum(sv>sv[1]/thre)
+    Sigma_D2[[1]] = sqrt(sv[1:Sigma_p2[[1]]])
+    Sigma_V2[[1]] = SVD$v[,1:Sigma_p2[[1]]]
+    
+    return(list(p1 = Sigma_p1, p2 = Sigma_p2, V1 = Sigma_V1, V2 = Sigma_V2, D1 = Sigma_D1, D2 = Sigma_D2))
+  }
   
-  SVD = svd.try(ld_diag[[1]], nu = 0, nv = nrow(ld_diag[[1]]))
-  sv = SVD$d
-  Sigma_p1[[1]] = sum(sv>sv[1]/thre)
-  Sigma_D1[[1]] = sqrt(sv[1:Sigma_p1[[1]]])
-  Sigma_V1[[1]] = SVD$v[,1:Sigma_p1[[1]]]
-  SVD = svd.try(ld2_diag[[1]], nu = 0, nv = nrow(ld2_diag[[1]]))
-  sv = SVD$d
-  Sigma_p2[[1]] = sum(sv>sv[1]/thre)
-  Sigma_D2[[1]] = sqrt(sv[1:Sigma_p2[[1]]])
-  Sigma_V2[[1]] = SVD$v[,1:Sigma_p2[[1]]]
-  
-  for(j in 2:(segment.count-1)){
-    snp_1 = segment.partition$SNP[segment.partition$segment == j]
-    snp_2 = segment.partition$SNP[segment.partition$segment == j + 1]
-    ld_diag[[j+1]] = cor(geno.block[, colnames(geno.block) %in% snp_2], use = 'pairwise.complete.obs')
-    ld_offdiag[[j]] = cor(geno.block[, colnames(geno.block) %in% snp_1], geno.block[, colnames(geno.block) %in% snp_2], use = 'pairwise.complete.obs')
-    ld_diag[[j+1]][is.na(ld_diag[[j+1]])] = ld_offdiag[[j]][is.na(ld_offdiag[[j]])] = 0
-    ld2_diag[[j]] = (n_ref-1)/(n_ref-2)*( ld_diag[[j]]%*%ld_diag[[j]] + t(ld_offdiag[[j-1]])%*%ld_offdiag[[j-1]] + ld_offdiag[[j]]%*%t(ld_offdiag[[j]]) ) - sum(len[(j-1):(j+1)])/(n_ref-2)*ld_diag[[j]]
-    ld2_offdiag[[j]] = (n_ref-1)/(n_ref-2)*( ld_diag[[j]]%*%ld_offdiag[[j]] + ld_offdiag[[j]]%*%ld_diag[[j+1]] ) - sum(len[j:(j+1)])/(n_ref-2)*ld_offdiag[[j]]
-    if(j > 2){
-      ld_diag[[j-2]] = ld_offdiag[[j-2]] = ld2_diag[[j-2]] = ld2_offdiag[[j-2]] = 0 
+  if(segment.count > 1){
+    ld_diag = ld_offdiag = ld2_diag = ld2_offdiag = list()
+    C1 = C2 = Sigma_p1 = Sigma_p2 = Sigma_V1 = Sigma_V2 = Sigma_D1 = Sigma_D2 = list()
+    snp_1 = segment.partition$SNP[segment.partition$segment == 1]
+    snp_2 = segment.partition$SNP[segment.partition$segment == 2]
+    ld_diag[[1]] = cor(geno.block[, colnames(geno.block) %in% snp_1], use = 'pairwise.complete.obs')
+    ld_diag[[2]] = cor(geno.block[, colnames(geno.block) %in% snp_2], use = 'pairwise.complete.obs')
+    ld_offdiag[[1]] = cor(geno.block[, colnames(geno.block) %in% snp_1], geno.block[, colnames(geno.block) %in% snp_2], use = 'pairwise.complete.obs')
+    ld_diag[[1]][is.na(ld_diag[[1]])] = ld_diag[[2]][is.na(ld_diag[[2]])] = ld_offdiag[[1]][is.na(ld_offdiag[[1]])] = 0
+    ld2_diag[[1]] = (n_ref-1)/(n_ref-2)*( ld_diag[[1]]%*%ld_diag[[1]] + ld_offdiag[[1]]%*%t(ld_offdiag[[1]]) ) - sum(len[1:2])/(n_ref-2)*ld_diag[[1]]
+    ld2_offdiag[[1]] = (n_ref-1)/(n_ref-2)*( ld_diag[[1]]%*%ld_offdiag[[1]] + ld_offdiag[[1]]%*%ld_diag[[2]] ) - sum(len[1:2])/(n_ref-2)*ld_offdiag[[1]]
+    
+    SVD = svd.try(ld_diag[[1]], nu = 0, nv = nrow(ld_diag[[1]]))
+    sv = SVD$d
+    Sigma_p1[[1]] = sum(sv>sv[1]/thre)
+    Sigma_D1[[1]] = sqrt(sv[1:Sigma_p1[[1]]])
+    Sigma_V1[[1]] = SVD$v[,1:Sigma_p1[[1]]]
+    SVD = svd.try(ld2_diag[[1]], nu = 0, nv = nrow(ld2_diag[[1]]))
+    sv = SVD$d
+    Sigma_p2[[1]] = sum(sv>sv[1]/thre)
+    Sigma_D2[[1]] = sqrt(sv[1:Sigma_p2[[1]]])
+    Sigma_V2[[1]] = SVD$v[,1:Sigma_p2[[1]]]
+    
+    if(segment.count > 2){
+      for(j in 2:(segment.count-1)){
+        snp_1 = segment.partition$SNP[segment.partition$segment == j]
+        snp_2 = segment.partition$SNP[segment.partition$segment == j + 1]
+        ld_diag[[j+1]] = cor(geno.block[, colnames(geno.block) %in% snp_2], use = 'pairwise.complete.obs')
+        ld_offdiag[[j]] = cor(geno.block[, colnames(geno.block) %in% snp_1], geno.block[, colnames(geno.block) %in% snp_2], use = 'pairwise.complete.obs')
+        ld_diag[[j+1]][is.na(ld_diag[[j+1]])] = ld_offdiag[[j]][is.na(ld_offdiag[[j]])] = 0
+        ld2_diag[[j]] = (n_ref-1)/(n_ref-2)*( ld_diag[[j]]%*%ld_diag[[j]] + t(ld_offdiag[[j-1]])%*%ld_offdiag[[j-1]] + ld_offdiag[[j]]%*%t(ld_offdiag[[j]]) ) - sum(len[(j-1):(j+1)])/(n_ref-2)*ld_diag[[j]]
+        ld2_offdiag[[j]] = (n_ref-1)/(n_ref-2)*( ld_diag[[j]]%*%ld_offdiag[[j]] + ld_offdiag[[j]]%*%ld_diag[[j+1]] ) - sum(len[j:(j+1)])/(n_ref-2)*ld_offdiag[[j]]
+        if(j > 2){
+          ld_diag[[j-2]] = ld_offdiag[[j-2]] = ld2_diag[[j-2]] = ld2_offdiag[[j-2]] = 0 
+        }
+        
+        svd1 = svd.try(ld_diag[[j-1]], nu = 0, nv = nrow(ld_diag[[j-1]]))
+        sv1 = svd1$d
+        p1 = sum(sv1>sv1[1]/thre)
+        if(p1 == 1){
+          D1 = 1/sv1[1:p1]
+        }else{
+          D1 = diag(1/sv1[1:p1])
+        }
+        V1 = as.matrix(svd1$v[,1:p1])
+        C1[[j]] = t(ld_offdiag[[j-1]])%*%V1%*%D1%*%t(V1)
+        Sigma1 = ld_diag[[j]] - C1[[j]]%*%ld_offdiag[[j-1]]
+        svd2 = svd.try(ld2_diag[[j-1]], nu = 0, nv = nrow(ld2_diag[[j-1]]))
+        sv2 = svd2$d
+        p2 = sum(sv2>sv2[1]/thre)
+        if(p2 == 1){
+          D2 = 1/sv2[1:p2]
+        }else{
+          D2 = diag(1/sv2[1:p2])
+        }
+        V2 = as.matrix(svd2$v[,1:p2])
+        C2[[j]] = t(ld2_offdiag[[j-1]])%*%V2%*%D2%*%t(V2)
+        Sigma2 = ld2_diag[[j]] - C2[[j]]%*%ld2_offdiag[[j-1]]
+        
+        SVD = svd.try(Sigma1, nu = 0, nv = nrow(Sigma1))
+        sv = SVD$d
+        Sigma_p1[[j]] = sum(sv>sv[1]/thre)
+        Sigma_D1[[j]] = sqrt(sv[1:Sigma_p1[[j]]])
+        Sigma_V1[[j]] = SVD$v[,1:Sigma_p1[[j]]]
+        SVD = svd.try(Sigma2, nu = 0, nv = nrow(Sigma2))
+        sv = SVD$d
+        Sigma_p2[[j]] = sum(sv>sv[1]/thre)
+        Sigma_D2[[j]] = sqrt(sv[1:Sigma_p2[[j]]])
+        Sigma_V2[[j]] = SVD$v[,1:Sigma_p2[[j]]]
+      }
     }
     
+    j = segment.count
+    ld2_diag[[j]] = ld_diag[[j]]%*%ld_diag[[j]] + t(ld_offdiag[[j-1]])%*%ld_offdiag[[j-1]]
     svd1 = svd.try(ld_diag[[j-1]], nu = 0, nv = nrow(ld_diag[[j-1]]))
     sv1 = svd1$d
     p1 = sum(sv1>sv1[1]/thre)
@@ -373,44 +458,8 @@ simulate_zscore_helper = function(segment.partition, geno.block, n_ref, thre){
     Sigma_p2[[j]] = sum(sv>sv[1]/thre)
     Sigma_D2[[j]] = sqrt(sv[1:Sigma_p2[[j]]])
     Sigma_V2[[j]] = SVD$v[,1:Sigma_p2[[j]]]
+    return(list(C1 = C1, C2 = C2, p1 = Sigma_p1, p2 = Sigma_p2, V1 = Sigma_V1, V2 = Sigma_V2, D1 = Sigma_D1, D2 = Sigma_D2))
   }
-  
-  j = segment.count
-  ld2_diag[[j]] = ld_diag[[j]]%*%ld_diag[[j]] + t(ld_offdiag[[j-1]])%*%ld_offdiag[[j-1]]
-  svd1 = svd.try(ld_diag[[j-1]], nu = 0, nv = nrow(ld_diag[[j-1]]))
-  sv1 = svd1$d
-  p1 = sum(sv1>sv1[1]/thre)
-  if(p1 == 1){
-    D1 = 1/sv1[1:p1]
-  }else{
-    D1 = diag(1/sv1[1:p1])
-  }
-  V1 = as.matrix(svd1$v[,1:p1])
-  C1[[j]] = t(ld_offdiag[[j-1]])%*%V1%*%D1%*%t(V1)
-  Sigma1 = ld_diag[[j]] - C1[[j]]%*%ld_offdiag[[j-1]]
-  svd2 = svd.try(ld2_diag[[j-1]], nu = 0, nv = nrow(ld2_diag[[j-1]]))
-  sv2 = svd2$d
-  p2 = sum(sv2>sv2[1]/thre)
-  if(p2 == 1){
-    D2 = 1/sv2[1:p2]
-  }else{
-    D2 = diag(1/sv2[1:p2])
-  }
-  V2 = as.matrix(svd2$v[,1:p2])
-  C2[[j]] = t(ld2_offdiag[[j-1]])%*%V2%*%D2%*%t(V2)
-  Sigma2 = ld2_diag[[j]] - C2[[j]]%*%ld2_offdiag[[j-1]]
-  
-  SVD = svd.try(Sigma1, nu = 0, nv = nrow(Sigma1))
-  sv = SVD$d
-  Sigma_p1[[j]] = sum(sv>sv[1]/thre)
-  Sigma_D1[[j]] = sqrt(sv[1:Sigma_p1[[j]]])
-  Sigma_V1[[j]] = SVD$v[,1:Sigma_p1[[j]]]
-  SVD = svd.try(Sigma2, nu = 0, nv = nrow(Sigma2))
-  sv = SVD$d
-  Sigma_p2[[j]] = sum(sv>sv[1]/thre)
-  Sigma_D2[[j]] = sqrt(sv[1:Sigma_p2[[j]]])
-  Sigma_V2[[j]] = SVD$v[,1:Sigma_p2[[j]]]
-  return(list(C1 = C1, C2 = C2, p1 = Sigma_p1, p2 = Sigma_p2, V1 = Sigma_V1, V2 = Sigma_V2, D1 = Sigma_D1, D2 = Sigma_D2))
 }
 
 cal_qmax = function(bim, geno1, geno2, n_ref1, n_ref2, thre, n_montecarlo, n1, n2, h2_snp_1, h2_snp_2, M, ldsc, theta, Cn, inter){
@@ -428,15 +477,17 @@ cal_qmax = function(bim, geno1, geno2, n_ref1, n_ref2, thre, n_montecarlo, n1, n
     tab = which(table(bim$segment)>3000)
   }
   tab = which(table(bim$segment)<10)
-  while(length(tab)>0){
-    ind = which(bim$segment == tab[1])
-    if(min(ind) == 1){
-      bim$segment[ind] = bim$segment[max(ind) + 1]
-    }else{
-      bim$segment[ind] = bim$segment[min(ind) - 1]
+  if(max(bim$segment) > 1){
+    while(length(tab)>0){
+      ind = which(bim$segment == tab[1])
+      if(min(ind) == 1){
+        bim$segment[ind] = bim$segment[max(ind) + 1]
+      }else{
+        bim$segment[ind] = bim$segment[min(ind) - 1]
+      }
+      bim$segment = as.numeric(as.factor(bim$segment))
+      tab = which(table(bim$segment)<10)
     }
-    bim$segment = as.numeric(as.factor(bim$segment))
-    tab = which(table(bim$segment)<10)
   }
   segment.partition = bim[, c(2, 7)]
   colnames(segment.partition) = c('SNP', 'segment')
@@ -458,25 +509,29 @@ cal_qmax = function(bim, geno1, geno2, n_ref1, n_ref2, thre, n_montecarlo, n1, n
   pop2_tt = t(pop2.helper$V2[[1]]%*%(X*pop2.helper$D2[[1]]))
   pop2_SS = pop2_ss
   pop2_TT = pop2_tt
-  for(j in 2:segment.count){
-    X = matrix(rnorm(n_montecarlo*pop1.helper$p1[[j]]), nrow = pop1.helper$p1[[j]], ncol = n_montecarlo)
-    pop1_ss_new = t(pop1.helper$V1[[j]]%*%(X*pop1.helper$D1[[j]])) + pop1_ss%*%t(pop1.helper$C1[[j]])
-    X = matrix(rnorm(n_montecarlo*pop1.helper$p2[[j]]), nrow = pop1.helper$p2[[j]], ncol = n_montecarlo)
-    pop1_tt_new = t(pop1.helper$V2[[j]]%*%(X*pop1.helper$D2[[j]])) + pop1_tt%*%t(pop1.helper$C2[[j]])
-    pop1_SS = cbind(pop1_SS, pop1_ss_new)
-    pop1_TT = cbind(pop1_TT, pop1_tt_new)
-    pop1_ss = pop1_ss_new
-    pop1_tt = pop1_tt_new
-    
-    X = matrix(rnorm(n_montecarlo*pop2.helper$p1[[j]]), nrow = pop2.helper$p1[[j]], ncol = n_montecarlo)
-    pop2_ss_new = t(pop2.helper$V1[[j]]%*%(X*pop2.helper$D1[[j]])) + pop2_ss%*%t(pop2.helper$C1[[j]])
-    X = matrix(rnorm(n_montecarlo*pop2.helper$p2[[j]]), nrow = pop2.helper$p2[[j]], ncol = n_montecarlo)
-    pop2_tt_new = t(pop2.helper$V2[[j]]%*%(X*pop2.helper$D2[[j]])) + pop2_tt%*%t(pop2.helper$C2[[j]])
-    pop2_SS = cbind(pop2_SS, pop2_ss_new)
-    pop2_TT = cbind(pop2_TT, pop2_tt_new)
-    pop2_ss = pop2_ss_new
-    pop2_tt = pop2_tt_new
+  
+  if(segment.count > 1){
+    for(j in 2:segment.count){
+      X = matrix(rnorm(n_montecarlo*pop1.helper$p1[[j]]), nrow = pop1.helper$p1[[j]], ncol = n_montecarlo)
+      pop1_ss_new = t(pop1.helper$V1[[j]]%*%(X*pop1.helper$D1[[j]])) + pop1_ss%*%t(pop1.helper$C1[[j]])
+      X = matrix(rnorm(n_montecarlo*pop1.helper$p2[[j]]), nrow = pop1.helper$p2[[j]], ncol = n_montecarlo)
+      pop1_tt_new = t(pop1.helper$V2[[j]]%*%(X*pop1.helper$D2[[j]])) + pop1_tt%*%t(pop1.helper$C2[[j]])
+      pop1_SS = cbind(pop1_SS, pop1_ss_new)
+      pop1_TT = cbind(pop1_TT, pop1_tt_new)
+      pop1_ss = pop1_ss_new
+      pop1_tt = pop1_tt_new
+      
+      X = matrix(rnorm(n_montecarlo*pop2.helper$p1[[j]]), nrow = pop2.helper$p1[[j]], ncol = n_montecarlo)
+      pop2_ss_new = t(pop2.helper$V1[[j]]%*%(X*pop2.helper$D1[[j]])) + pop2_ss%*%t(pop2.helper$C1[[j]])
+      X = matrix(rnorm(n_montecarlo*pop2.helper$p2[[j]]), nrow = pop2.helper$p2[[j]], ncol = n_montecarlo)
+      pop2_tt_new = t(pop2.helper$V2[[j]]%*%(X*pop2.helper$D2[[j]])) + pop2_tt%*%t(pop2.helper$C2[[j]])
+      pop2_SS = cbind(pop2_SS, pop2_ss_new)
+      pop2_TT = cbind(pop2_TT, pop2_tt_new)
+      pop2_ss = pop2_ss_new
+      pop2_tt = pop2_tt_new
+    }
   }
+  
   Z1 = sqrt(n1*h2_snp_1)*pop1_TT + sqrt(1 - h2_snp_1*M)*pop1_SS
   Z2 = sqrt(n2*h2_snp_2)*pop2_TT + sqrt(1 - h2_snp_2*M)*pop2_SS
   sd1 = sd2 = rep(0, n_montecarlo)
