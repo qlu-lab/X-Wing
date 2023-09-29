@@ -67,7 +67,6 @@ snps_ovp <- intersect(sumstats$SNP, ref_bim$V2)
 ref_bim_ovp <- ref_bim[match(snps_ovp, ref_bim$V2), ]
 sumstats_ovp <- sumstats[match(snps_ovp, sumstats$SNP), ]
 # standardized the genotype
-ref_bed <- as.data.frame(ref_bed)
 ref_bed_ovp <- scale(ref_bed[, match(snps_ovp, ref_bim$V2)])
 
 # Align the A1/A2 for the sumstats
