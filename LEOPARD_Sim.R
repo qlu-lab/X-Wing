@@ -67,6 +67,7 @@ snps_ovp <- intersect(sumstats$SNP, ref_bim$V2)
 ref_bim_ovp <- ref_bim[match(snps_ovp, ref_bim$V2), ]
 sumstats_ovp <- sumstats[match(snps_ovp, sumstats$SNP), ]
 # standardized the genotype
+ref_bed <- as.data.frame(ref_bed)
 ref_bed_ovp <- scale(ref_bed[, match(snps_ovp, ref_bim$V2)])
 
 # Align the A1/A2 for the sumstats
@@ -101,16 +102,16 @@ for (i in 1:rep){
   Z_train <- sqrt(N_train * rho_train ^2 / (1 - rho_train^2)) * sign(rho_train)
   P_train <- 2*pnorm(abs(Z_train), 0, 1, lower.tail = F)
   out_train <- sumstats_ovp[, 1:7]
-  out_train$BETA <- sign(rho_train)
   out_train$P <- P_train
+  out_train$BETA <- sign(rho_train) * abs(qnorm(out_train$P/2)) / sqrt(N_train)
 
   # validation data sumstats
   rho_valid <- (sumstats_ovp$xTy - rho_train * N_train) / N_valid
   Z_valid <- sqrt(N_valid * rho_valid ^2 / (1 - rho_valid^2)) * sign(rho_valid)
   P_valid <- 2*pnorm(abs(Z_valid), 0, 1, lower.tail = F)
   out_valid <- sumstats_ovp[, 1:7]
-  out_valid$BETA <- sign(rho_valid)
   out_valid$P <- P_valid
+  out_valid$BETA <- sign(rho_valid) * abs(qnorm(out_valid$P/2)) / sqrt(N_valid)
 
   # Remove NA from data
   ind_noNA <- intersect(which(!(is.na(out_train$BETA) )), which(!(is.na(out_valid$BETA) )))
