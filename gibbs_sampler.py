@@ -8,7 +8,7 @@ Gibbs sampler for PANTHER (Polygenic prediction using Bayesian ANnoTation-depend
 
 import scipy as sp
 from scipy import linalg 
-from scipy import random
+from numpy import random
 import numpy as np
 
 
