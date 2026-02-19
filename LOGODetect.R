@@ -124,10 +124,14 @@ dat1$P[dat1$P > 1 - 1e-300] = 1 - 1e-300
 dat2$P[dat2$P > 1 - 1e-300] = 1 - 1e-300
 if('BETA' %in% colnames(dat1)){
   dat1$Z = -qnorm(dat1$P/2) * sign(dat1$BETA)
+}
+if('BETA' %in% colnames(dat2)){
   dat2$Z = -qnorm(dat2$P/2) * sign(dat2$BETA)
 }
 if('OR' %in% colnames(dat1)){
   dat1$Z = -qnorm(dat1$P/2) * sign(log(dat1$OR))
+}
+if('OR' %in% colnames(dat2)){
   dat2$Z = -qnorm(dat2$P/2) * sign(log(dat2$OR))
 }
 dat1 = dat1[dat1$Z != Inf & dat1$Z != -Inf, ]
@@ -860,3 +864,4 @@ if(!is.na(n_topregion)){
 }
 
 unlink(paste0(out_dir, '/tmp_files'), recursive = T)
+
